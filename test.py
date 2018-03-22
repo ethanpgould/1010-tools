@@ -36,6 +36,8 @@ credit_tickers = ['AAL','AAP_ACQ_ADJ','AEO','AMZN','AMZN_EX_WHOLEFOODS','AMZN_EG
 	'TUES','TUMI','UA','UAL','ULTA','URBN','VFC_ACQ_ADJ','VNCE','VRA','VSI','W_ADJ','WEN','WFM',
 	'WING','WMT_ACQ_ADJ','WSM','ZOES','ZUMZ']
 
+recent_month_pds = []
+
 def query_1010_server(cardtype, timeframe):
 	"""
 	will query the 1010 server with requested source and period types
@@ -82,7 +84,7 @@ def query_1010_server(cardtype, timeframe):
 	q = s.query(tbl, query)                                       # define query
 	q.run()                                                       # run query
 	df = pd.DataFrame(q.dictslice(0,1000000))                     # capping size of download
-	# print(df)                                                     # print output
+	# print(df)                                                   # print output
 	df.to_csv(name)                                               # write to csv
 	return name
 
@@ -123,6 +125,7 @@ def create_period_df(pair):
 	pair: a (dict, list) tuple
 		dict: {ticker: [(period, sales_idx), ...]}
 		list: [n most recent periods]
+
 	"""	
 
 	data = pair[0]
@@ -141,25 +144,64 @@ def create_period_df(pair):
 
 	return out_df
 
+
+# TODO: fix this shitty bodge 
+def create_monthly_df(pair):
+	"""
+	pair: a (dict, list) tuple
+		dict: {ticker: [(period, sales_idx), ...]}
+		list: [n most recent periods]
+		
+	"""	
+	from operator import itemgetter
+
+	data = pair[0]
+	column_periods = pair[1][::-1] # desecending order
+
+	out_df = pd.DataFrame(columns = column_periods)
+
+	for ticker in data:
+
+		values = {}
+
+		data[ticker].sort(key=itemgetter(0)) # sort by first idx of tuple in ascending order 
+		
+		# print(ticker, '\n') 
+		# print(data[ticker])
+
+		for i in column_periods:
+			
+			pnt = data[ticker].pop()[1]
+			if pnt:
+				values[i] = float(pnt)
+
+		# print(values)
+		# print('\n')
+
+		new = pd.Series(data = values)
+		out_df.loc[ticker] = new
+
+	return out_df
+
 # def clean():
 
 def main():
-	# query_1010_server("credit", "quarterly")
-	# query_1010_server("credit", "monthly")
-	# query_1010_server("credit", "weekly")
+	query_1010_server("credit", "quarterly")
+	query_1010_server("credit", "monthly")
+	query_1010_server("credit", "weekly")
 
-	# weekly_pairs = structure_from_csv("creditweeklyupdated-test.csv", 6)
-	# weekly_df = create_period_df(weekly_pairs)
+	weekly_pairs = structure_from_csv("creditweeklyupdated-test.csv", 6)
+	weekly_df = create_period_df(weekly_pairs)
 	
-	# monthly_pairs = structure_from_csv("creditmonthlyupdated-test.csv", 6)
-	# monthly_df = create_period_df(monthly_pairs)
+	monthly_pairs = structure_from_csv("creditmonthlyupdated-test.csv", 6)
+	monthly_df = create_monthly_df(monthly_pairs)
 	
-	# quarterly_pairs = structure_from_csv("creditquarterlyupdated-test.csv", 8)
-	# quarterly_df = create_period_df(quarterly_pairs)
+	quarterly_pairs = structure_from_csv("creditquarterlyupdated-test.csv", 8)
+	quarterly_df = create_period_df(quarterly_pairs)
 	
-	# full_credit_df = pd.concat([weekly_df, monthly_df, quarterly_df], axis= 1)
-	# print(full_credit_df)
-	# full_credit_df.to_csv("full_credit-test.csv")
+	full_credit_df = pd.concat([weekly_df, monthly_df, quarterly_df], axis= 1)
+	print(full_credit_df)
+	full_credit_df.to_csv("full_credit-test.csv")
 
 	query_1010_server("debit", "quarterly")
 	query_1010_server("debit", "monthly")
@@ -169,7 +211,7 @@ def main():
 	weekly_df = create_period_df(weekly_pairs)
 	
 	monthly_pairs = structure_from_csv("debitmonthlyupdated-test.csv", 6)
-	monthly_df = create_period_df(monthly_pairs)
+	monthly_df = create_monthly_df(monthly_pairs)
 	
 	quarterly_pairs = structure_from_csv("debitquarterlyupdated-test.csv", 8)
 	quarterly_df = create_period_df(quarterly_pairs)
@@ -180,3 +222,10 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
+	# query_1010_server("debit", "monthly")
+	# monthly_pairs = structure_from_csv("debitmonthlyupdated-test.csv", 6)
+	# monthly_df = create_monthly_df(monthly_pairs)
+	
+	# print(monthly_df)
+	# monthly_df.to_csv('test.csv')
